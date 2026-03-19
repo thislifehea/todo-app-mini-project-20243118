@@ -24,6 +24,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 const todoSchema = new mongoose.Schema({
   title: { type: String, required: true },
   completed: { type: Boolean, default: false },
+  category: { type: String, default: '일반' },
+  dueDate: { type: Date },
+  priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
 }, { timestamps: true });
 
 const Todo = mongoose.model('Todo', todoSchema);
@@ -39,11 +42,16 @@ app.get('/api/todos', async (req, res) => {
 
 app.post('/api/todos', async (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, category, dueDate, priority } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ message: '제목을 입력해야 합니다.' });
     }
-    const todo = new Todo({ title: title.trim() });
+    const todo = new Todo({
+      title: title.trim(),
+      category: category || '일반',
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      priority: priority || 'medium',
+    });
     await todo.save();
     res.status(201).json(todo);
   } catch (error) {
@@ -54,11 +62,14 @@ app.post('/api/todos', async (req, res) => {
 app.put('/api/todos/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { completed, title } = req.body;
+    const { completed, title, category, dueDate, priority } = req.body;
 
     const update = {};
     if (typeof completed === 'boolean') update.completed = completed;
     if (typeof title === 'string') update.title = title.trim();
+    if (typeof category === 'string') update.category = category;
+    if (dueDate) update.dueDate = new Date(dueDate);
+    if (priority) update.priority = priority;
 
     const todo = await Todo.findByIdAndUpdate(id, update, { new: true });
     if (!todo) return res.status(404).json({ message: 'Todo를 찾을 수 없습니다.' });
